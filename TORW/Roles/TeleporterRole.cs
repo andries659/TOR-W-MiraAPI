@@ -1,7 +1,7 @@
 ﻿using MiraAPI.Roles;
 using UnityEngine;
 
-namespace MiraAPI.Example.Roles;
+namespace TORW.Roles;
 
 [RegisterCustomRole]
 public class TeleporterRole : CrewmateRole, ICustomRole
@@ -14,9 +14,9 @@ public class TeleporterRole : CrewmateRole, ICustomRole
 
     public CustomRoleConfiguration Configuration => new CustomRoleConfiguration(this)
     {
-        OptionsScreenshot = ExampleAssets.Banner,
-        CanModifyChance = false,
-        DefaultChance = 73,
-        DefaultRoleCount = 4,
+        OptionsScreenshot = TORWAssets.TeleporterBanner,
+        CanModifyChance = true,
+        DefaultChance = 10,
+        DefaultRoleCount = 0,
     };
 }

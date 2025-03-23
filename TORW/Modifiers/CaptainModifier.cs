@@ -1,7 +1,7 @@
 ﻿using MiraAPI.Modifiers;
 using MiraAPI.Modifiers.Types;
 
-namespace MiraAPI.Example.Modifiers;
+namespace TORW.Modifiers;
 
 [RegisterModifier]
 public class CaptainModifier : GameModifier

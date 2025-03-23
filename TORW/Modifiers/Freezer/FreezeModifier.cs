@@ -1,10 +1,10 @@
 ﻿using Il2CppSystem;
-using MiraAPI.Example.Roles;
+using TORW.Roles;
 using MiraAPI.Modifiers;
 using MiraAPI.Modifiers.Types;
 using UnityEngine;
 
-namespace MiraAPI.Example.Modifiers.Freezer;
+namespace TORW.Modifiers.Freezer;
 
 [RegisterModifier]
 public class FreezeModifier : TimedModifier

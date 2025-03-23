@@ -1,7 +1,7 @@
 ﻿ <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<Version>1.0.0</Version>
-		<Description>Example mod for Mira API</Description>
+		<Description>TORW mod for Mira API</Description>
 		<Authors>Angxl, XtraCube</Authors>
 	</PropertyGroup>
 
@@ -11,7 +11,8 @@
 
 	<ItemGroup>
 		<EmbeddedResource Include="Resources\ExampleButton.png" />
-		<EmbeddedResource Include="Resources\FortniteBanner.jpeg" />
+		<EmbeddedResource Include="Resources\Banner1.png" />
+		<EmbeddedResource Include="Resources\Banner2.png" />
 		<EmbeddedResource Include="Resources\TeleportButton.png" />
 	</ItemGroup>
 

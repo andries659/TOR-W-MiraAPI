@@ -2,7 +2,7 @@
 using TMPro;
 using UnityEngine;
 
-namespace MiraAPI.Example.Roles;
+namespace TORW.Roles;
 
 [RegisterCustomRole]
 public class ChameloenRole : CrewmateRole, ICustomRole
@@ -15,7 +15,7 @@ public class ChameloenRole : CrewmateRole, ICustomRole
 
     public CustomRoleConfiguration Configuration => new CustomRoleConfiguration(this)
     {
-        OptionsScreenshot = ExampleAssets.Banner,
+        OptionsScreenshot = TORWAssets.FreezerBanner,
     };
 
     public void PlayerControlFixedUpdate(PlayerControl playerControl)

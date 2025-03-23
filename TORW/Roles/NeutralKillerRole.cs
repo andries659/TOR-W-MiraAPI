@@ -1,7 +1,7 @@
 ﻿using MiraAPI.Roles;
 using UnityEngine;
 
-namespace MiraAPI.Example.Roles;
+namespace TORW.Roles;
 
 [RegisterCustomRole]
 public class NeutralKillerRole : ImpostorRole, ICustomRole

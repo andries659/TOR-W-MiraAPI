@@ -1,5 +1,5 @@
-﻿using MiraAPI.Example.Options.Roles;
-using MiraAPI.Example.Roles;
+﻿using TORW.Options.Roles;
+using TORW.Roles;
 using MiraAPI.GameOptions;
 using MiraAPI.Hud;
 using MiraAPI.Utilities.Assets;
@@ -7,7 +7,7 @@ using Reactor.Utilities;
 using System.Collections;
 using UnityEngine;
 
-namespace MiraAPI.Example.Buttons.Teleporter;
+namespace TORW.Buttons.Teleporter;
 [RegisterButton]
 public class TeleportButton : CustomActionButton
 {
@@ -19,7 +19,7 @@ public class TeleportButton : CustomActionButton
 
     public override int MaxUses => 0;
 
-    public override LoadableAsset<Sprite> Sprite => ExampleAssets.TeleportButton;
+    public override LoadableAsset<Sprite> Sprite => TORWAssets.TeleportButton;
     public static bool IsZoom { get; private set; }
 
     public override bool Enabled(RoleBehaviour? role)

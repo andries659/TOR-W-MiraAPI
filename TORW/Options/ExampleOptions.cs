@@ -3,11 +3,11 @@ using MiraAPI.GameOptions.Attributes;
 using MiraAPI.Utilities;
 using UnityEngine;
 
-namespace MiraAPI.Example.Options;
+namespace TORW.Options;
 
-public class ExampleOptions : AbstractOptionGroup
+public class TORWOptions : AbstractOptionGroup
 {
-    public override string GroupName => "Example Options 1";
+    public override string GroupName => "TORW Options 1";
     public override Color GroupColor => Color.green;
 
     [ModdedToggleOption("Toggle Opt 1")]

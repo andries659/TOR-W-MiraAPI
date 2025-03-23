@@ -4,7 +4,7 @@ using Reactor.Utilities.Attributes;
 using Reactor.Utilities.ImGui;
 using UnityEngine;
 
-namespace MiraAPI.Example;
+namespace TORW;
 
 [RegisterInIl2Cpp]
 public class MiraDebugWindow(IntPtr cppPtr) : MonoBehaviour(cppPtr)

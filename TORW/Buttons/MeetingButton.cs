@@ -1,10 +1,10 @@
-﻿using MiraAPI.Example.Modifiers;
+﻿using TORW.Modifiers;
 using MiraAPI.Hud;
 using MiraAPI.Utilities;
 using MiraAPI.Utilities.Assets;
 using UnityEngine;
 
-namespace MiraAPI.Example.Buttons;
+namespace TORW.Buttons;
 
 [RegisterButton]
 public class MeetingButton : CustomActionButton
@@ -17,7 +17,7 @@ public class MeetingButton : CustomActionButton
 
     public override int MaxUses => 3;
 
-    public override LoadableAsset<Sprite> Sprite => ExampleAssets.ExampleButton;
+    public override LoadableAsset<Sprite> Sprite => TORWAssets.ExampleButton;
 
     public override bool Enabled(RoleBehaviour? role)
     {

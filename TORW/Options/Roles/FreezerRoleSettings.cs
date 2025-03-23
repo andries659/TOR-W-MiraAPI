@@ -1,10 +1,11 @@
-﻿using MiraAPI.Example.Roles;
+﻿using System;
+using TORW.Roles;
 using MiraAPI.GameOptions;
 using MiraAPI.GameOptions.Attributes;
-using System;
+using MiraAPI.GameOptions.OptionTypes;
 using MiraAPI.Utilities;
 
-namespace MiraAPI.Example.Options.Roles;
+namespace TORW.Options.Roles;
 
 public class FreezerRoleSettings : AbstractOptionGroup
 {

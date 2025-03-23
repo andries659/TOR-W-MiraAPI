@@ -1,11 +1,11 @@
 ﻿using System;
-using MiraAPI.Example.Roles;
+using TORW.Roles;
 using MiraAPI.GameOptions;
 using MiraAPI.GameOptions.Attributes;
 using MiraAPI.GameOptions.OptionTypes;
 using MiraAPI.Utilities;
 
-namespace MiraAPI.Example.Options.Roles;
+namespace TORW.Options.Roles;
 
 public class TeleporterOptions : AbstractOptionGroup
 {
