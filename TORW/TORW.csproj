@@ -2,7 +2,7 @@
 	<PropertyGroup>
 		<Version>1.0.0</Version>
 		<Description>TORW mod for Mira API</Description>
-		<Authors>Angxl, XtraCube</Authors>
+		<Authors>Angel.lol</Authors>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -10,11 +10,8 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<EmbeddedResource Include="Resources\ExampleButton.png" />
-		<EmbeddedResource Include="Resources\Banner1.png" />
-		<EmbeddedResource Include="Resources\Banner2.png" />
-		<EmbeddedResource Include="Resources\TeleportButton.png" />
-	</ItemGroup>
+        <EmbeddedResource Include="Resources\**\*.*" />
+    </ItemGroup>
 
 	<Import Project="..\AmongUs.props" />
 </Project>
