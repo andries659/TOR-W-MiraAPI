@@ -1,7 +1,7 @@
-﻿using MiraAPI.GameOptions.OptionTypes;
-using MiraAPI.Utilities;
-using System;
+﻿using System;
 using System.Reflection;
+using MiraAPI.GameOptions.OptionTypes;
+using MiraAPI.Utilities;
 
 namespace MiraAPI.GameOptions.Attributes;
 
@@ -15,13 +15,13 @@ public class ModdedNumberOptionAttribute(
     float max,
     float increment = 1,
     MiraNumberSuffixes suffixType = MiraNumberSuffixes.None,
-    bool zeroInfinity = false,
-    Type? roleType = null)
-    : ModdedOptionAttribute(title, roleType)
+    string? formatString = null,
+    bool zeroInfinity = false)
+    : ModdedOptionAttribute(title)
 {
     internal override IModdedOption CreateOption(object? value, PropertyInfo property)
     {
-        return new ModdedNumberOption(Title, (float)(value ?? min+increment), min, max, increment, suffixType, zeroInfinity, RoleType);
+        return new ModdedNumberOption(Title, (float)(value ?? min+increment), min, max, increment, suffixType, formatString, zeroInfinity);
     }
 
     /// <inheritdoc />

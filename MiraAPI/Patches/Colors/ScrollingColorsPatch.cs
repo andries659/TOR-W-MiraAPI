@@ -4,17 +4,19 @@ using UnityEngine;
 
 namespace MiraAPI.Patches.Colors;
 
-[HarmonyPatch(typeof(PlayerTab))]
+/// <summary>
+/// This patch adds scrolling to the colors tab in the player customization menu.
+/// </summary>
+[HarmonyPatch(typeof(PlayerTab), nameof(PlayerTab.OnEnable))]
 public static class ScrollingColorsPatch
 {
     // Collider
     private static BoxCollider2D? _collider;
 
     /// <summary>
-    /// Add scrolling to the colors tab
+    /// Add scrolling to the colors tab.
     /// </summary>
-    [HarmonyPostfix, HarmonyPatch("OnEnable")]
-    public static void AddScrollingToColorsTabPatch(PlayerTab __instance)
+    public static void Postfix(PlayerTab __instance)
     {
         if (!PlayerCustomizationMenu.Instance)
         {

@@ -1,7 +1,7 @@
-﻿using AmongUs.GameOptions;
+﻿using System;
+using AmongUs.GameOptions;
 using MiraAPI.Networking;
 using MiraAPI.Utilities;
-using System;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
@@ -46,8 +46,8 @@ public class ModdedNumberOption : ModdedOption<float>
     /// <param name="max">The maximum value.</param>
     /// <param name="increment">The increment.</param>
     /// <param name="suffixType">The suffix type.</param>
+    /// <param name="formatString">Optional format string for the option screen.</param>
     /// <param name="zeroInfinity">Whether zero is infinity or not.</param>
-    /// <param name="roleType">An optional role type.</param>
     public ModdedNumberOption(
         string title,
         float defaultValue,
@@ -55,8 +55,8 @@ public class ModdedNumberOption : ModdedOption<float>
         float max,
         float increment,
         MiraNumberSuffixes suffixType,
-        bool zeroInfinity = false,
-        Type? roleType = null) : base(title, defaultValue, roleType)
+        string? formatString = null,
+        bool zeroInfinity = false) : base(title, defaultValue)
     {
         Min = min;
         Max = max;
@@ -74,7 +74,13 @@ public class ModdedNumberOption : ModdedOption<float>
         data.Value = Value;
         data.Increment = Increment;
         data.ValidRange = new FloatRange(Min, Max);
-        data.FormatString = Increment % 1 == 0 && Value % 1 == 0 && Min % 1 == 0 && Max % 1 == 0 ? "0" : "0.0"; // not sure if the == checks will work since this is floats but we'll find out
+        data.FormatString = formatString ??
+                            (defaultValue.IsInteger() &&
+                             Increment.IsInteger() &&
+                             Value.IsInteger() &&
+                             Min.IsInteger() &&
+                             Max.IsInteger() ? "0" : "0.0");
+
         data.ZeroIsInfinity = ZeroInfinity;
         data.SuffixType = (NumberSuffixes)SuffixType;
         data.OptionName = FloatOptionNames.Invalid;
@@ -136,12 +142,22 @@ public class ModdedNumberOption : ModdedOption<float>
         Value = Mathf.Clamp(newValue, Min, Max);
         HudManager.Instance.Notifier.AddSettingsChangeMessage(
             StringName,
-            Data?.GetValueString(Value),
+            Data.GetValueString(Value),
             false);
 
         if (OptionBehaviour is NumberOption opt)
         {
             opt.Value = Value;
         }
+    }
+
+    /// <summary>
+    /// Implicitly converts the option to an int.
+    /// </summary>
+    /// <param name="option">The option.</param>
+    /// <returns>Integer value.</returns>
+    public static implicit operator int(ModdedNumberOption option)
+    {
+        return (int)option.Value;
     }
 }

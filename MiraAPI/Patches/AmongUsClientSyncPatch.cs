@@ -1,19 +1,25 @@
 ﻿using HarmonyLib;
 using InnerNet;
+using MiraAPI.Events;
+using MiraAPI.Events.Vanilla.Player;
 using MiraAPI.GameOptions;
-using MiraAPI.Modifiers;
 using MiraAPI.Roles;
 
 namespace MiraAPI.Patches;
 
 /// <summary>
-/// Sync all options, role settings, and modifiers to the player when they join the game.
+/// Sync all settings to the player when they join the game.
 /// </summary>
-[HarmonyPatch(typeof(AmongUsClient), nameof(AmongUsClient.CreatePlayer))]
-public static class AmongUsClientSyncPatch
+[HarmonyPatch(typeof(AmongUsClient))]
+internal static class AmongUsClientSyncPatch
 {
-    public static void Postfix(ClientData clientData)
+    [HarmonyPostfix]
+    [HarmonyPatch(typeof(AmongUsClient), nameof(AmongUsClient.CreatePlayer))]
+    public static void CreatePlayerPatch(ClientData clientData)
     {
+        var joinEvent = new PlayerJoinEvent(clientData);
+        MiraEventManager.InvokeEvent(joinEvent);
+
         if (!AmongUsClient.Instance.AmHost)
         {
             return;
@@ -26,6 +32,13 @@ public static class AmongUsClientSyncPatch
 
         ModdedOptionsManager.SyncAllOptions(clientData.Id);
         CustomRoleManager.SyncAllRoleSettings(clientData.Id);
-        ModifierManager.SyncAllModifiers(clientData.Id);
+    }
+
+    [HarmonyPostfix]
+    [HarmonyPatch(typeof(AmongUsClient), nameof(AmongUsClient.OnPlayerLeft))]
+    public static void PlayerLeftPatch(ClientData data, DisconnectReasons reason)
+    {
+        var leftEvent = new PlayerLeaveEvent(data, reason);
+        MiraEventManager.InvokeEvent(leftEvent);
     }
 }

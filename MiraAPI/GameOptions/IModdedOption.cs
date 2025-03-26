@@ -6,14 +6,13 @@ using UnityEngine;
 
 namespace MiraAPI.GameOptions;
 
-internal interface IModdedOption
+public interface IModdedOption
 {
     uint Id { get; }
     string Title { get; }
     StringNames StringName { get; }
     IMiraPlugin? ParentMod { get; set; }
     BaseGameSetting Data { get; }
-    Type? AdvancedRole { get; set; }
     OptionBehaviour? OptionBehaviour { get; }
     Func<bool> Visible { get; set; }
     ConfigDefinition? ConfigDefinition { get; set; }

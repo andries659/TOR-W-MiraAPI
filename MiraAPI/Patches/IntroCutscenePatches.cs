@@ -1,7 +1,8 @@
 ﻿using HarmonyLib;
+using MiraAPI.Events;
+using MiraAPI.Events.Vanilla.Gameplay;
 using MiraAPI.Roles;
 using MiraAPI.Utilities;
-using UnityEngine;
 
 namespace MiraAPI.Patches;
 
@@ -20,37 +21,39 @@ public static class IntroCutscenePatches
         }
     }*/
 
+    [HarmonyPostfix]
+    [HarmonyPatch(nameof(IntroCutscene.CoBegin))]
+    public static void IntroBeginPatch(IntroCutscene __instance)
+    {
+        var @event = new IntroBeginEvent(__instance);
+        MiraEventManager.InvokeEvent(@event);
+    }
+
     [HarmonyPrefix]
+    [HarmonyPatch(nameof(IntroCutscene.BeginImpostor))]
     [HarmonyPatch(nameof(IntroCutscene.BeginCrewmate))]
-    public static bool BeginCrewmatePatch(IntroCutscene __instance)
+    public static bool BeginPrefix(IntroCutscene __instance, [HarmonyArgument(0)] ref Il2CppSystem.Collections.Generic.List<PlayerControl> yourTeam)
+    {
+        return PlayerControl.LocalPlayer.Data.Role is not ICustomRole customRole || customRole.SetupIntroTeam(__instance, ref yourTeam);
+    }
+
+    [HarmonyPostfix]
+    [HarmonyPatch(nameof(IntroCutscene.BeginImpostor))]
+    [HarmonyPatch(nameof(IntroCutscene.BeginCrewmate))]
+    public static void BeginPostfix(IntroCutscene __instance)
     {
         if (PlayerControl.LocalPlayer.Data.Role is not ICustomRole customRole)
         {
-            return true;
+            return;
         }
 
-        if (customRole.Team is not ModdedRoleTeams.Neutral)
+        if (customRole.IntroConfiguration is { } introConfig)
         {
-            return true;
+            __instance.BackgroundBar.material.SetColor(ShaderID.Color, introConfig.IntroTeamColor);
+            __instance.TeamTitle.color = introConfig.IntroTeamColor;
+            __instance.TeamTitle.text = introConfig.IntroTeamTitle;
+            __instance.ImpostorText.text = introConfig.IntroTeamDescription;
         }
-
-        var barTransform = __instance.BackgroundBar.transform;
-        var position = barTransform.position;
-        position.y -= 0.25f;
-        barTransform.position = position;
-
-        __instance.BackgroundBar.material.SetColor(ShaderID.Color, Color.gray);
-        __instance.TeamTitle.text = "NEUTRAL";
-        __instance.impostorScale = 1f;
-        __instance.ImpostorText.text = "You are Neutral. You do not have a team.";
-        __instance.TeamTitle.color = Color.gray;
-
-        __instance.ourCrewmate = __instance.CreatePlayer(
-            0,
-            Mathf.CeilToInt(7.5f),
-            PlayerControl.LocalPlayer.Data,
-            false);
-        return false;
     }
 
     /*

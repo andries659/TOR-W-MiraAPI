@@ -18,7 +18,7 @@ using Sentry.Unity;
 
 namespace TORW;
 
-[BepInAutoPlugin("com.andries659.torw-miraapi", "Town Of Re-Worked", "1.0.0")]
+[BepInAutoPlugin("com.andries659.torw-miraapi", "Town Of Re-Worked")]
 [BepInProcess("Among Us.exe")]
 [BepInDependency(ReactorPlugin.Id)]
 [BepInDependency(MiraApiPlugin.Id)]
@@ -30,6 +30,7 @@ public partial class TORW : BasePlugin, IMiraPlugin
     public ConfigFile GetConfigFile() => Config;
     public override void Load()
     {
+        TORWEventHandlers.Initialize();
         Harmony.PatchAll();
         ReactorCredits.Register<TORW>(ReactorCredits.AlwaysShow);
     }

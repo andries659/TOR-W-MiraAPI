@@ -4,7 +4,7 @@ using UnityEngine;
 namespace MiraAPI.Patches.Roles;
 
 [HarmonyPatch(typeof(TaskPanelBehaviour))]
-public static class TaskPanelPatch
+internal static class TaskPanelPatch
 {
     /// <summary>
     /// This patch is to override the automatic updating of the y position on the tab (which is in base game)

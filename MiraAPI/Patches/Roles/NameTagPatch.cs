@@ -1,10 +1,11 @@
 ﻿using HarmonyLib;
+using MiraAPI.Roles;
 using UnityEngine;
 
 namespace MiraAPI.Patches.Roles;
 
 /// <summary>
-/// Set nametag color depending on option
+/// Set nametag color depending on visibility.
 /// </summary>
 [HarmonyPatch(typeof(PlayerNameColor))]
 public static class NameTagPatch
@@ -13,6 +14,12 @@ public static class NameTagPatch
     [HarmonyPatch(nameof(PlayerNameColor.Get), typeof(RoleBehaviour))]
     public static bool GetPatch([HarmonyArgument(0)] RoleBehaviour otherPlayerRole, ref Color __result)
     {
+        if (otherPlayerRole is ICustomRole customRole && customRole.CanLocalPlayerSeeRole(otherPlayerRole.Player))
+        {
+            __result = customRole.RoleColor;
+            return false;
+        }
+
         if (PlayerControl.LocalPlayer.Data.Role.IsImpostor && otherPlayerRole.IsImpostor)
         {
             return true;

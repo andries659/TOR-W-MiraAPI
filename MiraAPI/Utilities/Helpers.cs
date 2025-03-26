@@ -1,8 +1,7 @@
-﻿using MiraAPI.Roles;
+﻿using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Text;
 using TMPro;
 using UnityEngine;
 using Object = UnityEngine.Object;
@@ -14,6 +13,141 @@ namespace MiraAPI.Utilities;
 /// </summary>
 public static class Helpers
 {
+    /// <summary>
+    /// Get all living players.
+    /// </summary>
+    /// <returns>A list of alive players.</returns>
+    public static List<PlayerControl> GetAlivePlayers()
+    {
+        return PlayerControl.AllPlayerControls.ToArray().Where(x => !x.Data.IsDead).ToList();
+    }
+
+    /// <summary>
+    /// Determines whether a given probability check succeeds.
+    /// </summary>
+    /// <param name="probability">An integer value representing the success probability (0-100).</param>
+    /// <returns>True if the number falls in the range, false if not.</returns>
+    public static bool CheckChance(int probability)
+    {
+        switch (probability)
+        {
+            case 0:
+                return false;
+            case 100:
+                return true;
+            default:
+            {
+                var num = Random.RandomRangeInt(1, 101);
+                return num <= probability;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Retrieves a vent from the ID.
+    /// </summary>
+    /// <param name="id">The vent ID.</param>
+    /// <returns>The vent.</returns>
+    public static Vent? GetVentById(int id)
+    {
+        return ShipStatus.Instance.AllVents.FirstOrDefault(vent => vent.Id == id);
+    }
+
+    /// <summary>
+    /// Creates an arrow.
+    /// </summary>
+    /// <param name="parent">The arrow gameObject's parent.</param>
+    /// <param name="color">The color of the arrow.</param>
+    /// <returns>The created ArrowBehaviour.</returns>
+    public static ArrowBehaviour CreateArrow(Transform parent, Color color)
+    {
+        var prefab = Object.FindObjectOfType<ArrowBehaviour>(true);
+        var arrow = Object.Instantiate(prefab, parent);
+        arrow.image = arrow.gameObject.GetComponent<SpriteRenderer>();
+        arrow.image.color = color;
+        arrow.gameObject.layer = 5;
+        arrow.gameObject.SetActive(true);
+        return arrow;
+    }
+
+    /// <summary>
+    /// Get the closest object of a specific type.
+    /// </summary>
+    /// <param name="objectList">A list of all the objects you'd like to check the distance for.</param>
+    /// <param name="position">The position of where you want to check from. For example: PlayerControl.LocalPlayer.transform.position.</param>
+    /// <typeparam name="T">The object type.</typeparam>
+    /// <returns>The closest object.</returns>
+    public static T? FindClosestObjectOfType<T>(List<T> objectList, Vector3 position) where T : MonoBehaviour
+    {
+        T? closest = null;
+        var closestDistanceSqr = Mathf.Infinity;
+
+        foreach (var obj in objectList)
+        {
+            if (obj == null)
+            {
+                continue;
+            }
+
+            var sqrDistance = (obj.transform.position - position).sqrMagnitude;
+            if (sqrDistance < closestDistanceSqr)
+            {
+                closestDistanceSqr = sqrDistance;
+                closest = obj;
+            }
+        }
+
+        return closest;
+    }
+
+    /// <summary>
+    /// Creates and shows a notification.
+    /// </summary>
+    /// <param name="text">The text you want to display.</param>
+    /// <param name="color">The color of the text and image.</param>
+    /// <param name="clip">The sound you want to play with the notification.</param>
+    /// <param name="spr">The sprite beside the notification.</param>
+    /// <returns>The created notification.</returns>
+    public static LobbyNotificationMessage CreateAndShowNotification(string text, Color color, AudioClip? clip = null, Sprite? spr = null)
+    {
+        return CreateAndShowNotification(text, color, new Vector3(0f, 0f, -2f), clip, spr);
+    }
+
+    /// <summary>
+    /// Creates and shows a notification.
+    /// </summary>
+    /// <param name="text">The text you want to display.</param>
+    /// <param name="color">The color of the text and image.</param>
+    /// <param name="localPos">The position of the notification.</param>
+    /// <param name="clip">The sound you want to play with the notification.</param>
+    /// <param name="spr">The sprite beside the notification.</param>
+    /// <returns>The created notification.</returns>
+    public static LobbyNotificationMessage CreateAndShowNotification(string text, Color color, Vector3 localPos, AudioClip? clip = null, Sprite? spr = null)
+    {
+        var popper = HudManager.Instance.Notifier;
+        var newMessage = Object.Instantiate(popper.notificationMessageOrigin, Vector3.zero, Quaternion.identity, popper.transform);
+        newMessage.transform.localPosition = localPos;
+        newMessage.SetUp(text, spr ?? null, color, new System.Action(() => popper.OnMessageDestroy(newMessage)));
+        popper.lastMessageKey = -1;
+        popper.ShiftMessages();
+        popper.AddMessageToQueue(newMessage);
+
+        if (clip == null) return newMessage;
+        SoundManager.Instance.StopSound(clip);
+        SoundManager.Instance.PlaySound(clip, false, 2f);
+
+        return newMessage;
+    }
+
+    /// <summary>
+    /// Returns an empty coroutine.
+    /// </summary>
+    /// <returns>Empty coroutine.</returns>
+    public static IEnumerator EmptyCoroutine()
+    {
+        yield break;
+    }
+
     /// <summary>
     /// Creates a ContactFilter2D from a layer mask.
     /// </summary>
@@ -31,7 +165,7 @@ public static class Helpers
     /// <returns>The ship room if its found.</returns>
     public static PlainShipRoom? GetRoom(Vector3 pos)
     {
-        return ShipStatus.Instance.AllRooms.ToList().Find(room => room.roomArea.OverlapPoint(pos));
+        return ShipStatus.Instance.AllRooms.FirstOrDefault(room => room.roomArea.OverlapPoint(pos));
     }
 
     /// <summary>
@@ -89,14 +223,14 @@ public static class Helpers
         }
 
         return (from player in newList
-            let vector = player.GetTruePosition() - source
-            let magnitude = vector.magnitude
-            where !PhysicsHelpers.AnyNonTriggersBetween(
-                source,
-                vector.normalized,
-                magnitude,
-                Constants.ShipAndObjectsMask)
-            select player).ToList();
+                let vector = player.GetTruePosition() - source
+                let magnitude = vector.magnitude
+                where !PhysicsHelpers.AnyNonTriggersBetween(
+                    source,
+                    vector.normalized,
+                    magnitude,
+                    Constants.ShipAndObjectsMask)
+                select player).ToList();
     }
 
     /// <summary>
@@ -158,7 +292,7 @@ public static class Helpers
             select playerControl);
 
         outputList.Sort(
-            delegate(PlayerControl a, PlayerControl b)
+            delegate (PlayerControl a, PlayerControl b)
             {
                 var magnitude2 = (a.GetTruePosition() - source).magnitude;
                 var magnitude3 = (b.GetTruePosition() - source).magnitude;
@@ -246,16 +380,24 @@ public static class Helpers
     }
 
     /// <summary>
-    /// Creates a string builder for the Role Tab.
+    /// Converts the first letter of a string to uppercase.
     /// </summary>
-    /// <param name="role">The ICustomRole object.</param>
-    /// <returns>A StringBuilder.</returns>
-    public static StringBuilder CreateForRole(ICustomRole role)
+    /// <param name="str">The string.</param>
+    /// <returns>The fixed string.</returns>
+    public static string FirstLetterToUpper(string str)
     {
-        var taskStringBuilder = new StringBuilder();
-        taskStringBuilder.AppendLine(CultureInfo.InvariantCulture, $"{role.RoleColor.ToTextColor()}You are a <b>{role.RoleName}.</b></color>");
-        taskStringBuilder.Append("<size=70%>");
-        taskStringBuilder.AppendLine(CultureInfo.InvariantCulture, $"{role.RoleLongDescription}");
-        return taskStringBuilder;
+        return CultureInfo.CurrentCulture.TextInfo.ToTitleCase(str.ToLower(CultureInfo.InvariantCulture));
+    }
+
+    /// <summary>
+    /// Gets a random string based on characters.
+    /// </summary>
+    /// <param name="length">The length of the string.</param>
+    /// <param name="chars">The characters in the random string.</param>
+    /// <returns>The random string.</returns>
+    public static string RandomString(int length, string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+    {
+        return new string(Enumerable.Repeat(chars, length)
+            .Select(s => s[Random.RandomRangeInt(0, s.Length)]).ToArray());
     }
 }

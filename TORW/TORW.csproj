@@ -1,7 +1,8 @@
 ﻿ <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<Version>1.0.0</Version>
-		<Description>TORW mod for Mira API</Description>
+		<VersionPrefix>1.0.0</VersionPrefix>
+		<VersionSuffix>Release</VersionSuffix>
+		<Description>Town Of Re-Worked Mod</Description>
 		<Authors>Angel.lol</Authors>
 	</PropertyGroup>
 
@@ -10,8 +11,16 @@
 	</ItemGroup>
 
 	<ItemGroup>
-        <EmbeddedResource Include="Resources\**\*.*" />
-    </ItemGroup>
+		<EmbeddedResource Include="Resources\ExampleButton.png" />
+		<EmbeddedResource Include="Resources\Banner1.png" />
+		<EmbeddedResource Include="Resources\Banner2.png" />
+		<EmbeddedResource Include="Resources\Banner3.png" />
+		<EmbeddedResource Include="Resources\Banner4.png" />
+		<EmbeddedResource Include="Resources\TeleportButton.png" />
+		<EmbeddedResource Include="Resources\TeleportIcon.png" />
+		<EmbeddedResource Include="Resources\MayorIcon.png" />
+		<EmbeddedResource Include="Resources\Logo.png" />
+	</ItemGroup>
 
 	<Import Project="..\AmongUs.props" />
 </Project>

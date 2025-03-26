@@ -1,13 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
+using System.Text.RegularExpressions;
 using HarmonyLib;
 using MiraAPI.GameOptions;
-using MiraAPI.Modifiers;
 using MiraAPI.Networking;
 using MiraAPI.Roles;
-using Reactor.Networking.Attributes;
+using MiraAPI.Voting;
 using Reactor.Utilities;
+using TMPro;
 using UnityEngine;
 
 namespace MiraAPI.Utilities;
@@ -19,12 +21,202 @@ public static class Extensions
 {
     internal static NetData GetNetData(this ICustomRole role)
     {
-        role.ParentMod.PluginConfig.TryGetEntry<int>(role.NumConfigDefinition, out var numEntry);
-        role.ParentMod.PluginConfig.TryGetEntry<int>(role.ChanceConfigDefinition, out var chanceEntry);
+        var count = role.GetCount();
+        var chance = role.GetChance();
+
+        if (count == null)
+        {
+            Logger<MiraApiPlugin>.Error("Couldn't get role count for NetData, defaulting to zero.");
+            count = 0;
+        }
+
+        if (chance == null)
+        {
+            Logger<MiraApiPlugin>.Error("Couldn't get role chance for NetData, defaulting to zero.");
+            chance = 0;
+        }
 
         return new NetData(
             RoleId.Get(role.GetType()),
-            BitConverter.GetBytes(numEntry.Value).AddRangeToArray(BitConverter.GetBytes(chanceEntry.Value)));
+            BitConverter.GetBytes(count.Value).AddRangeToArray(BitConverter.GetBytes(chance.Value)));
+    }
+
+    /// <summary>
+    /// Gets a PlayerControl from their PlayerVoteArea in a meeting.
+    /// </summary>
+    /// <param name="state">The vote area.</param>
+    /// <returns>The player's PlayerControl.</returns>
+    public static PlayerControl? GetPlayer(this PlayerVoteArea state) => GameData.Instance.GetPlayerById(state.TargetPlayerId)?.Object;
+
+    /// <summary>
+    /// Gets an int representing the amount of tasks a player has left.
+    /// </summary>
+    /// <param name="player">The player.</param>
+    /// <returns>A count of how many tasks the player has left.</returns>
+    public static int GetTasksLeft(this PlayerControl player) => player.Data.Tasks.ToArray().Count(x => !x.Complete);
+
+    /// <summary>
+    /// Checks if a PlayerControl is the game's host.
+    /// </summary>
+    /// <param name="playerControl">The player you're checking for.</param>
+    /// <returns>If the player is the host, true, else false.</returns>
+    public static bool IsHost(this PlayerControl playerControl)
+    {
+        return TutorialManager.InstanceExists || AmongUsClient.Instance.HostId == playerControl.OwnerId;
+    }
+
+    /// <summary>
+    /// Determines if a float is an integer.
+    /// </summary>
+    /// <param name="number">The float number.</param>
+    /// <returns>True if the float is an integer, false otherwise.</returns>
+    public static bool IsInteger(this float number)
+    {
+        return Mathf.Approximately(number, Mathf.Round(number));
+    }
+
+    /// <summary>
+    /// Gets a cache of player's vote data components to improve performance.
+    /// </summary>
+    public static Dictionary<PlayerControl, PlayerVoteData> VoteDataComponents { get; } = [];
+
+    /// <summary>
+    /// Gets the PlayerVoteData of a player.
+    /// </summary>
+    /// <param name="player">The PlayerControl object.</param>
+    /// <returns>A PlayerVoteData if there is one, null otherwise.</returns>
+    public static PlayerVoteData GetVoteData(this PlayerControl player)
+    {
+        if (VoteDataComponents.TryGetValue(player, out var component))
+        {
+            return component;
+        }
+
+        component = player.GetComponent<PlayerVoteData>();
+        if (!component)
+        {
+            throw new InvalidOperationException("PlayerVoteData is not attached to the player.");
+        }
+
+        VoteDataComponents[player] = component;
+        return component;
+    }
+
+    public static KeyValuePair<byte, int> MaxPair(this Dictionary<byte, int> self, out bool tie)
+    {
+        tie = true;
+        var result = new KeyValuePair<byte, int>(byte.MaxValue, int.MinValue);
+        foreach (var keyValuePair in self)
+        {
+            if (keyValuePair.Value > result.Value)
+            {
+                result = keyValuePair;
+                tie = false;
+            }
+            else if (keyValuePair.Value == result.Value)
+            {
+                tie = true;
+            }
+        }
+        return result;
+    }
+
+    public static KeyValuePair<byte, float> MaxPair(this Dictionary<byte, float> self, out bool tie)
+    {
+        tie = true;
+        var result = new KeyValuePair<byte, float>(byte.MaxValue, int.MinValue);
+        foreach (var keyValuePair in self)
+        {
+            if (keyValuePair.Value > result.Value)
+            {
+                result = keyValuePair;
+                tie = false;
+            }
+            else if (Math.Abs(keyValuePair.Value - result.Value) < .05)
+            {
+                tie = true;
+            }
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Gets the best constructor for a type based on the specified arguments.
+    /// </summary>
+    /// <param name="type">The type to get the constructor from.</param>
+    /// <param name="args">The arguments to pass into the constructor.</param>
+    /// <returns>The best constructor.</returns>
+    public static ConstructorInfo? GetBestConstructor(this Type type, params object[] args)
+    {
+        return type.GetValidConstructors(args)
+            .OrderBy(
+                ctor => ctor.GetParameters()
+                    .Select((p, i) => GetInheritanceDistance(args[i].GetType(), p.ParameterType))
+                    .Sum())
+            .FirstOrDefault();
+    }
+
+    /// <summary>
+    /// Gets a proper string for an enum. (with spaces).
+    /// </summary>
+    /// <param name="enum">The enum you would like to change.</param>
+    /// <returns>A proper string for the enum.</returns>
+    public static string ToDisplayString(this Enum @enum)
+    {
+        var regex = new Regex(@"([^\^])([A-Z][a-z$])");
+        return regex.Replace(@enum.ToString(), m => $"{m.Groups[1].Value} {m.Groups[2].Value}");
+    }
+
+    /// <summary>
+    /// Gets the constructors of a type that match the specified arguments.
+    /// </summary>
+    /// <param name="type">The type to get constructors from.</param>
+    /// <param name="args">The arguments to pass into the constructor.</param>
+    /// <returns>A collection of valid constructors.</returns>
+    public static IEnumerable<ConstructorInfo> GetValidConstructors(this Type type, params object[] args)
+    {
+        return type.GetConstructors().Where(
+            x =>
+            {
+                var parameters = x.GetParameters();
+                return parameters.Length == args.Length && Array.TrueForAll(
+                    parameters,
+                    t => t.ParameterType.IsInstanceOfType(args[t.Position]));
+            });
+    }
+
+    /// <summary>
+    /// Calculates the inheritance distance from the given type to its target base type.
+    /// Lower values mean the type is a closer match.
+    /// </summary>
+    /// <param name="from">The derived type.</param>
+    /// <param name="to">The base type.</param>
+    /// <returns>The distance between the types.</returns>
+    public static int GetInheritanceDistance(Type from, Type to)
+    {
+        if (!from.IsAssignableFrom(to))
+        {
+            return int.MaxValue;
+        }
+
+        var type = from;
+        var distance = 0;
+        while (type != null && type != to)
+        {
+            type = type.BaseType;
+            distance++;
+        }
+        return type == to ? distance : int.MaxValue;
+    }
+
+    /// <summary>
+    /// Enables stencil masking on a TMP text object.
+    /// </summary>
+    /// <param name="text">The TMP text.</param>
+    public static void EnableStencilMasking(this TMP_Text text)
+    {
+        text.fontMaterial.SetFloat(ShaderID.Stencil, 1);
+        text.fontMaterial.SetFloat(ShaderID.StencilComp, 4);
     }
 
     /// <summary>
@@ -85,18 +277,19 @@ public static class Extensions
 
             if (length > chunkSize)
             {
-                Logger<MiraApiPlugin>.Error($"NetData length is greater than chunk size: {length} > {chunkSize}");
+                Logger<MiraApiPlugin>.Info($"NetData length is greater than chunk size: {length} > {chunkSize}");
                 continue;
             }
 
             if (count + length > chunkSize)
             {
-                chunks.Enqueue(current.ToArray());
+                chunks.Enqueue([.. current]);
                 current.Clear();
                 count = 0;
             }
 
             current.Add(netData);
+            count += length;
         }
 
         if (current.Count > 0)
@@ -116,30 +309,6 @@ public static class Extensions
     {
         return ModdedOptionsManager.ModdedOptions.Values.Any(
             opt => opt.OptionBehaviour && opt.OptionBehaviour == optionBehaviour);
-    }
-
-    internal static Dictionary<PlayerControl, ModifierComponent> ModifierComponents { get; } = [];
-
-    /// <summary>
-    /// Gets the ModifierComponent for a player.
-    /// </summary>
-    /// <param name="player">The PlayerControl object.</param>
-    /// <returns>A ModifierComponent if there is one, null otherwise.</returns>
-    public static ModifierComponent? GetModifierComponent(this PlayerControl player)
-    {
-        if (ModifierComponents.TryGetValue(player, out var component))
-        {
-            return component;
-        }
-
-        component = player.GetComponent<ModifierComponent>();
-        if (component == null)
-        {
-            return null;
-        }
-
-        ModifierComponents[player] = component;
-        return component;
     }
 
     /// <summary>
@@ -163,105 +332,6 @@ public static class Extensions
     }
 
     /// <summary>
-    /// Gets a modifier by its type, or null if the player doesn't have it.
-    /// </summary>
-    /// <param name="player">The PlayerControl object.</param>
-    /// <typeparam name="T">The Type of the Modifier.</typeparam>
-    /// <returns>The Modifier if it is found, null otherwise.</returns>
-    public static T? GetModifier<T>(this PlayerControl? player) where T : BaseModifier
-    {
-        return player?.GetModifierComponent()?.ActiveModifiers.Find(x => x is T) as T;
-    }
-
-    /// <summary>
-    /// Checks if a player has a modifier.
-    /// </summary>
-    /// <param name="player">The PlayerControl object.</param>
-    /// <typeparam name="T">The Type of the Modifier.</typeparam>
-    /// <returns>True if the Modifier is present, false otherwise.</returns>
-    public static bool HasModifier<T>(this PlayerControl? player) where T : BaseModifier
-    {
-        return player?.GetModifierComponent() != null &&
-               player.GetModifierComponent()!.ActiveModifiers.Exists(x => x is T);
-    }
-
-    /// <summary>
-    /// Checks if a player has a modifier by its ID.
-    /// </summary>
-    /// <param name="player">The PlayerControl object.</param>
-    /// <param name="id">The Modifier ID.</param>
-    /// <returns>True if the Modifier is present, false otherwise.</returns>
-    public static bool HasModifier(this PlayerControl? player, uint id)
-    {
-        return player?.GetModifierComponent() != null &&
-               player.GetModifierComponent()!.ActiveModifiers.Exists(x => x.ModifierId == id);
-    }
-
-    /// <summary>
-    /// Remote Procedure Call to remove a modifier from a player.
-    /// </summary>
-    /// <param name="target">The player to remove the modifier from.</param>
-    /// <param name="modifierId">The ID of the modifier.</param>
-    [MethodRpc((uint)MiraRpc.RemoveModifier)]
-    public static void RpcRemoveModifier(this PlayerControl target, uint modifierId)
-    {
-        target.GetModifierComponent()?.RemoveModifier(modifierId);
-    }
-
-    /// <summary>
-    /// Remote Procedure Call to remove a modifier from a player.
-    /// </summary>
-    /// <param name="player">The player to remove the modifier from.</param>
-    /// <typeparam name="T">The Type of the Modifier.</typeparam>
-    public static void RpcRemoveModifier<T>(this PlayerControl player) where T : BaseModifier
-    {
-        var id = ModifierManager.GetModifierId(typeof(T));
-
-        if (id == null)
-        {
-            Logger<MiraApiPlugin>.Error($"Cannot add modifier {typeof(T).Name} because it is not registered.");
-            return;
-        }
-
-        player.RpcRemoveModifier(id.Value);
-    }
-
-    /// <summary>
-    /// Remote Procedure Call to add a modifier to a player.
-    /// </summary>
-    /// <param name="target">The player to add the modifier to.</param>
-    /// <param name="modifierId">The modifier ID.</param>
-    [MethodRpc((uint)MiraRpc.AddModifier)]
-    public static void RpcAddModifier(this PlayerControl target, uint modifierId)
-    {
-        var type = ModifierManager.GetModifierType(modifierId);
-        if (type == null)
-        {
-            Logger<MiraApiPlugin>.Error($"Cannot add modifier with id {modifierId} because it is not registered.");
-            return;
-        }
-
-        target.GetModifierComponent()?.AddModifier(type);
-    }
-
-    /// <summary>
-    /// Remote Procedure Call to add a modifier to a player.
-    /// </summary>
-    /// <param name="player">The player to add the modifier to.</param>
-    /// <typeparam name="T">The modifier Type.</typeparam>
-    public static void RpcAddModifier<T>(this PlayerControl player) where T : BaseModifier
-    {
-        var id = ModifierManager.GetModifierId(typeof(T));
-        if (id == null)
-        {
-            Logger<MiraApiPlugin>.Error($"Cannot add modifier {typeof(T).Name} because it is not registered.");
-            return;
-        }
-
-        player.RpcAddModifier(id.Value);
-    }
-
-    /// <summary>
     /// Darkens a color by a specified amount.
     /// </summary>
     /// <param name="color">The original color.</param>
@@ -278,6 +348,7 @@ public static class Extensions
     /// <param name="color">The original color.</param>
     /// <param name="amount">The amount to darken or lighten the original color by between 0.0 and 1.0.</param>
     /// <returns>An alternate color that has been darkened or lightened.</returns>
+    [Obsolete("Use FindAlternateColor for WACG compliance.")]
     public static Color GetAlternateColor(this Color color, float amount = 0.45f)
     {
         return color.IsColorDark() ? LightenColor(color, amount) : DarkenColor(color, amount);
@@ -363,5 +434,17 @@ public static class Extensions
             .ToList();
 
         return predicate != null ? filteredPlayers.Find(predicate) : filteredPlayers.FirstOrDefault();
+    }
+
+    /// <summary>
+    /// Fixed version of Reactor's SetOutline.
+    /// </summary>
+    /// <param name="renderer">The renderer you want to update the outline for.</param>
+    /// <param name="color">The outline color.</param>
+    public static void UpdateOutline(this Renderer renderer, Color? color)
+    {
+        renderer.material.SetFloat(ShaderID.Outline, color.HasValue ? 1 : 0);
+        renderer.material.SetColor(ShaderID.OutlineColor, color ?? Color.clear);
+        renderer.material.SetColor(ShaderID.AddColor, color ?? Color.clear);
     }
 }

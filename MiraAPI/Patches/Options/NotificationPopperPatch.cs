@@ -1,7 +1,7 @@
-﻿using HarmonyLib;
+﻿using System.Linq;
+using HarmonyLib;
 using Il2CppSystem;
 using MiraAPI.Roles;
-using System.Linq;
 
 namespace MiraAPI.Patches.Options;
 

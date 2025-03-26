@@ -1,10 +1,9 @@
-﻿using BepInEx.Configuration;
+﻿using System;
+using BepInEx.Configuration;
 using MiraAPI.Networking;
 using MiraAPI.PluginLoading;
-using MiraAPI.Roles;
 using Reactor.Localization.Utilities;
 using Reactor.Networking.Rpc;
-using System;
 using UnityEngine;
 
 namespace MiraAPI.GameOptions.OptionTypes;
@@ -73,11 +72,6 @@ public abstract class ModdedOption<T> : IModdedOption
     public Func<bool> Visible { get; set; }
 
     /// <summary>
-    /// Gets or sets the advanced role of the option.
-    /// </summary>
-    public Type? AdvancedRole { get; set; }
-
-    /// <summary>
     /// Gets or sets the option behaviour of the option.
     /// </summary>
     public OptionBehaviour? OptionBehaviour { get; protected set; }
@@ -85,25 +79,14 @@ public abstract class ModdedOption<T> : IModdedOption
     /// <summary>
     /// Gets or sets the config definition of the option.
     /// </summary>
-    public ConfigDefinition? ConfigDefinition
-    {
-        get => _configDefinition;
-        set
-        {
-            if (_configDefinition is not null) return;
-            _configDefinition = value;
-        }
-    }
-
-    private ConfigDefinition? _configDefinition;
+    public ConfigDefinition? ConfigDefinition { get; set; }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ModdedOption{T}"/> class.
     /// </summary>
     /// <param name="title">The option title.</param>
     /// <param name="defaultValue">The default value.</param>
-    /// <param name="roleType">The Role Type or null if it doesn't belong to a role.</param>
-    protected ModdedOption(string title, T defaultValue, Type? roleType)
+    protected ModdedOption(string title, T defaultValue)
     {
         Id = ModdedOptionsManager.NextId;
         Title = title;
@@ -111,11 +94,6 @@ public abstract class ModdedOption<T> : IModdedOption
         Value = defaultValue;
         StringName = CustomStringName.CreateAndRegister(Title);
         Visible = () => true;
-
-        if (roleType is not null && roleType.IsAssignableTo(typeof(ICustomRole)))
-        {
-            AdvancedRole = roleType;
-        }
     }
 
     internal void ValueChanged(OptionBehaviour optionBehaviour)
@@ -194,4 +172,14 @@ public abstract class ModdedOption<T> : IModdedOption
         NumberOption numberOpt,
         StringOption stringOpt,
         Transform container);
+
+    /// <summary>
+    /// Implicitly converts the option to type of <typeparamref name="T"/>.
+    /// </summary>
+    /// <param name="option">The option.</param>
+    /// <returns>Value of type <typeparamref name="T"/>.</returns>
+    public static implicit operator T(ModdedOption<T> option)
+    {
+        return option.Value;
+    }
 }

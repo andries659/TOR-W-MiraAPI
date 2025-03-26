@@ -1,9 +1,8 @@
 using System;
 using System.IO;
 using System.Reflection;
+using System.Resources;
 using System.Text;
-using Cpp2IL.Core.Extensions;
-using Reactor.Utilities.Extensions;
 using UnityEngine;
 
 namespace MiraAPI.Utilities.Assets;
@@ -21,41 +20,112 @@ public class LoadableAudioResourceAsset(string path) : LoadableAsset<AudioClip>
     /// </summary>
     /// <returns>The asset to load.</returns>
     /// <exception cref="NotSupportedException">Attempted to load an Audio file in non WAV format.</exception>
-    /// <exception cref="FileNotFoundException">Stream failed to load. Check if the name of your asset was correct.</exception>
+    /// <exception cref="MissingManifestResourceException">Stream failed to load. Check if the name of your asset was correct.</exception>
     public override AudioClip LoadAsset()
     {
-        var assetStream = _assembly.GetManifestResourceStream(path) ??
-                          throw new FileNotFoundException(
-                              "Stream failed to load. Check if the name of your asset was correct.");
-        var audioBytes = assetStream.ReadFully();
+        using var assetStream = _assembly.GetManifestResourceStream(path)
+            ?? throw new MissingManifestResourceException($"Stream failed to load. Check if the asset name is correct: {path}");
 
-        var riffHeader = Encoding.ASCII.GetString(audioBytes.SubArray(0, 4));
-        var waveHeader = Encoding.ASCII.GetString(audioBytes.SubArray(8, 4));
+        using var reader = new BinaryReader(assetStream);
 
-        if (riffHeader != "RIFF" || waveHeader != "WAVE")
+        // Read RIFF header
+        if (Encoding.ASCII.GetString(reader.ReadBytes(4)) != "RIFF")
         {
-            throw new NotSupportedException($"Attempted to load an Audio file in non WAV format '{path}'.");
+            throw new NotSupportedException("Invalid WAV file (missing RIFF header).");
         }
 
-        int channels = BitConverter.ToInt16(audioBytes, 22);
-        var sampleRate = BitConverter.ToInt32(audioBytes, 24);
-        var dataSize = BitConverter.ToInt32(audioBytes, 40);
+        reader.ReadInt32(); // File size (ignore)
 
-        var audioData = new float[dataSize / 2];
-        for (var i = 0; i < audioData.Length; i++)
+        if (Encoding.ASCII.GetString(reader.ReadBytes(4)) != "WAVE")
         {
-            audioData[i] = BitConverter.ToInt16(audioBytes, 44 + i * 2) / 32768.0f;
+            throw new NotSupportedException("Invalid WAV file (missing WAVE header).");
         }
 
-        var audioClip = AudioClip.Create(
-            path,
-            audioData.Length,
-            channels,
-            sampleRate,
-            false
-        );
-        audioClip.SetData(audioData, 0);
+        // Read chunks
+        int channels = 0, sampleRate = 0, bitsPerSample = 0;
+        byte[]? audioData = null;
+
+        while (reader.BaseStream.Position < reader.BaseStream.Length)
+        {
+            var chunkId = Encoding.ASCII.GetString(reader.ReadBytes(4));
+            var chunkSize = reader.ReadInt32();
+
+            // Format chunk
+            if (chunkId == "fmt ")
+            {
+                int audioFormat = reader.ReadInt16();
+                channels = reader.ReadInt16();
+                sampleRate = reader.ReadInt32();
+                reader.ReadInt32(); // Byte rate (ignore)
+                reader.ReadInt16(); // Block align (ignore)
+                bitsPerSample = reader.ReadInt16();
+
+                if (audioFormat != 1) // Only PCM supported
+                    throw new NotSupportedException("Only PCM WAV files are supported.");
+            }
+            // Data chunk
+            else if (chunkId == "data")
+            {
+                audioData = reader.ReadBytes(chunkSize);
+                break; // No need to read further
+            }
+            else
+            {
+                reader.BaseStream.Seek(chunkSize, SeekOrigin.Current); // Skip unknown chunks
+            }
+        }
+
+        if (audioData == null)
+        {
+            throw new InvalidOperationException("WAV file does not contain audio data.");
+        }
+
+        if (channels == 0 || sampleRate == 0 || bitsPerSample == 0)
+        {
+            throw new InvalidOperationException("WAV file does not contain valid format information.");
+        }
+
+        // Convert PCM data to float array
+        var samples = ConvertPcmToFloat(audioData, bitsPerSample);
+
+        // Create the AudioClip
+        var audioClip = AudioClip.Create(path, samples.Length / channels, channels, sampleRate, false);
+        audioClip.SetData(samples, 0);
 
         return audioClip;
+    }
+
+    // This is somewhat magic to me, I just copied it from elsewhere.
+    private static float[] ConvertPcmToFloat(byte[] pcmData, int bitsPerSample)
+    {
+        var sampleCount = pcmData.Length / (bitsPerSample / 8);
+        var floatData = new float[sampleCount];
+
+        for (var i = 0; i < sampleCount; i++)
+        {
+            var byteIndex = i * (bitsPerSample / 8);
+
+            switch (bitsPerSample)
+            {
+                case 8:
+                    floatData[i] = (pcmData[byteIndex] - 128) / 128f; // 8-bit PCM is unsigned
+                    break;
+                case 16:
+                    floatData[i] = BitConverter.ToInt16(pcmData, byteIndex) / 32768f;
+                    break;
+                case 24:
+                    var sample24 = pcmData[byteIndex] | (pcmData[byteIndex + 1] << 8) | (pcmData[byteIndex + 2] << 16);
+                    if (sample24 > 0x7FFFFF) sample24 -= 0x1000000; // Convert from unsigned to signed
+                    floatData[i] = sample24 / 8388608f;
+                    break;
+                case 32:
+                    floatData[i] = BitConverter.ToInt32(pcmData, byteIndex) / 2147483648f;
+                    break;
+                default:
+                    throw new NotSupportedException($"Unsupported bit depth: {bitsPerSample}");
+            }
+        }
+
+        return floatData;
     }
 }

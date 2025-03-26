@@ -5,7 +5,7 @@ VisualStudioVersion = 17.9.34622.214
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MiraAPI", "MiraAPI\MiraAPI.csproj", "{11FBC798-BAF5-4EE5-9511-BE6DB0592F99}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TOR-W", "TORW\TORW.csproj", "{19B76855-16CC-43CC-A0A6-5A7FFB43F077}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TORW", "TORW\TORW.csproj", "{19B76855-16CC-43CC-A0A6-5A7FFB43F077}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

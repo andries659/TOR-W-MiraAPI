@@ -1,18 +1,20 @@
-﻿using AmongUs.GameOptions;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using AmongUs.GameOptions;
 using Il2CppInterop.Runtime;
 using Il2CppInterop.Runtime.Injection;
 using MiraAPI.Networking;
 using MiraAPI.PluginLoading;
 using MiraAPI.Utilities;
+using MiraAPI.Utilities.Assets;
 using Reactor.Localization.Utilities;
 using Reactor.Networking.Rpc;
 using Reactor.Utilities;
 using Reactor.Utilities.Extensions;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using TMPro;
 using UnityEngine;
+using UnityEngine.TextCore;
 using Object = UnityEngine.Object;
 
 namespace MiraAPI.Roles;
@@ -22,6 +24,18 @@ namespace MiraAPI.Roles;
 /// </summary>
 public static class CustomRoleManager
 {
+    /// <summary>
+    /// The default Among Us Crewmate Intro Sound.
+    /// </summary>
+    public static readonly LoadableAsset<AudioClip> CrewmateIntroSound =
+        CustomRoleUtils.GetIntroSound(RoleTypes.Crewmate)!;
+
+    /// <summary>
+    /// The default Among Us Impostor Intro Sound.
+    /// </summary>
+    public static readonly LoadableAsset<AudioClip> ImpostorIntroSound =
+        CustomRoleUtils.GetIntroSound(RoleTypes.Impostor)!;
+
     internal static readonly Dictionary<ushort, RoleBehaviour> CustomRoles = [];
     internal static readonly Dictionary<Type, ushort> RoleIds = [];
 
@@ -79,7 +93,7 @@ public static class CustomRoleManager
         var roleId = RoleIds[roleType];
 
         roleBehaviour.Role = (RoleTypes)roleId;
-        roleBehaviour.TeamType = customRole.Team == ModdedRoleTeams.Neutral ? RoleTeamTypes.Crewmate : (RoleTeamTypes)customRole.Team;
+        roleBehaviour.TeamType = customRole.Team == ModdedRoleTeams.Custom ? RoleTeamTypes.Crewmate : (RoleTeamTypes)customRole.Team;
         roleBehaviour.NameColor = customRole.RoleColor;
         roleBehaviour.StringName = CustomStringName.CreateAndRegister(customRole.RoleName);
         roleBehaviour.BlurbName = CustomStringName.CreateAndRegister(customRole.RoleDescription);
@@ -91,9 +105,24 @@ public static class CustomRoleManager
         roleBehaviour.CanVent = customRole.Configuration.CanUseVent;
         roleBehaviour.DefaultGhostRole = customRole.Configuration.GhostRole;
         roleBehaviour.MaxCount = customRole.Configuration.MaxRoleCount;
-        roleBehaviour.RoleScreenshot = customRole.Configuration.OptionsScreenshot.LoadAsset();
+        roleBehaviour.RoleScreenshot = customRole.Configuration.OptionsScreenshot?.LoadAsset();
 
-        if (customRole.Configuration.IsGhostRole)
+        if (customRole.Configuration.Icon != null)
+        {
+            var asset = customRole.Configuration.Icon.LoadAsset();
+            if (asset != null)
+            {
+                roleBehaviour.RoleIconSolid = asset;
+                roleBehaviour.RoleIconWhite = asset;
+            }
+        }
+
+        if (customRole.Configuration.IntroSound != null)
+        {
+            roleBehaviour.IntroSound = customRole.Configuration.IntroSound.LoadAsset();
+        }
+
+        if (roleBehaviour.IsDead)
         {
             RoleManager.GhostRoles.Add(roleBehaviour.Role);
         }
@@ -228,15 +257,8 @@ public static class CustomRoleManager
 
             try
             {
-                customRole.ParentMod.PluginConfig.TryGetEntry<int>(
-                    customRole.NumConfigDefinition,
-                    out var numEntry);
-                customRole.ParentMod.PluginConfig.TryGetEntry<int>(
-                    customRole.ChanceConfigDefinition,
-                    out var chanceEntry);
-
-                numEntry.Value = num;
-                chanceEntry.Value = chance;
+                customRole.SetCount(num);
+                customRole.SetChance(chance);
             }
             catch (Exception e)
             {

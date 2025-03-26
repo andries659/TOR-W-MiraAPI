@@ -22,5 +22,6 @@ public static class TORWColors
     public static CustomColor Emerald { get; } = new CustomColor("Emerald", new Color32(80, 200, 120, 255), new Color32(0, 201, 87, 255));
     public static CustomColor Fuchsia { get; } = new CustomColor("Fuchsia", new Color32(255, 119, 255, 255), new Color32(255, 0, 255, 255));
     public static CustomColor NavyBlue { get; } = new CustomColor("Navy Blue", new Color32(0, 0, 128, 255), new Color32(0, 0, 102, 255));
+    public static CustomColor RoyalBlue { get; } = new CustomColor("Royal Blue", new Color32(65, 105, 225, 255));
 }
 }

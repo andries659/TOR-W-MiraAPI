@@ -1,6 +1,5 @@
 ﻿namespace MiraAPI.GameModes;
 
-[RegisterGameMode]
 public class DefaultMode : CustomGameMode
 {
     public override string Name => "Default";

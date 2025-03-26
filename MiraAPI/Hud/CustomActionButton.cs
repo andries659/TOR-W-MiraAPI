@@ -1,7 +1,13 @@
-﻿using MiraAPI.Utilities.Assets;
+﻿using System;
+using System.Globalization;
+using MiraAPI.Events;
+using MiraAPI.Events.Mira;
+using MiraAPI.Patches;
+using MiraAPI.Utilities.Assets;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
+using Object = UnityEngine.Object;
 
 namespace MiraAPI.Hud;
 
@@ -16,19 +22,14 @@ public abstract class CustomActionButton
     public abstract string Name { get; }
 
     /// <summary>
+    /// Gets the initial cooldown duration in seconds.
+    /// </summary>
+    public virtual float InitialCooldown => Cooldown;
+
+    /// <summary>
     /// Gets the button's cooldown duration in seconds.
     /// </summary>
     public abstract float Cooldown { get; }
-
-    /// <summary>
-    /// Gets the button's effect duration in seconds. If the button has no effect, set to 0.
-    /// </summary>
-    public abstract float EffectDuration { get; }
-
-    /// <summary>
-    /// Gets the maximum amount of uses the button has. If the button has infinite uses, set to 0.
-    /// </summary>
-    public abstract int MaxUses { get; }
 
     /// <summary>
     /// Gets the sprite of the button. Use <see cref="LoadableResourceAsset"/> to load a sprite from a resource path. Use <see cref="LoadableBundleAsset{T}"/> to load a sprite from an asset bundle.
@@ -36,9 +37,24 @@ public abstract class CustomActionButton
     public abstract LoadableAsset<Sprite> Sprite { get; }
 
     /// <summary>
-    /// Gets the location of the button on the screen.
+    /// Gets the button's effect duration in seconds. If the button has no effect, set to 0.
     /// </summary>
-    public virtual ButtonLocation Location => ButtonLocation.BottomLeft;
+    public virtual float EffectDuration => 0;
+
+    /// <summary>
+    /// Gets the maximum amount of uses the button has. If the button has infinite uses, set to 0.
+    /// </summary>
+    public virtual int MaxUses => 0;
+
+    /// <summary>
+    /// Gets the button's text outline color.
+    /// </summary>
+    public virtual Color TextOutlineColor => Color.clear;
+
+    /// <summary>
+    /// Gets or sets the location of the button on the screen.
+    /// </summary>
+    public virtual ButtonLocation Location { get; set; } = ButtonLocation.BottomLeft;
 
     /// <summary>
     /// Gets a value indicating whether the button has an effect ability.
@@ -53,24 +69,33 @@ public abstract class CustomActionButton
     /// <summary>
     /// Gets or sets a value indicating whether the effect is currently active, if there is one.
     /// </summary>
-    public bool EffectActive { get; protected set; }
+    public bool EffectActive { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the timer is currently active.
+    /// </summary>
+    public bool TimerPaused { get; set; }
 
     /// <summary>
     /// Gets or sets the amount of uses left.
     /// </summary>
-    public int UsesLeft { get; protected set; }
+    public int UsesLeft { get; set; }
 
     /// <summary>
     /// Gets or sets the timer variable to measure cooldowns and effects.
     /// </summary>
-    public float Timer { get; protected set; }
+    public float Timer { get; set; }
 
     /// <summary>
-    /// Gets the button object in game. This is created by Mira API automatically.
+    /// Gets or sets the button object in game. This is created by Mira API automatically.
     /// </summary>
-    protected ActionButton? Button { get; private set; }
+    public ActionButton? Button { get; set; }
 
-    internal void CreateButton(Transform parent)
+    /// <summary>
+    /// The method used to create the button.
+    /// </summary>
+    /// <param name="parent">The parent of the button.</param>
+    public virtual void CreateButton(Transform parent)
     {
         if (Button)
         {
@@ -78,8 +103,9 @@ public abstract class CustomActionButton
         }
 
         UsesLeft = MaxUses;
-        Timer = Cooldown;
+        Timer = AmongUsClient.Instance?.NetworkMode == NetworkModes.FreePlay ? 0 : InitialCooldown;
         EffectActive = false;
+        TimerPaused = false;
 
         Button = Object.Instantiate(HudManager.Instance.AbilityButton, parent);
         Button.name = Name + "Button";
@@ -93,15 +119,94 @@ public abstract class CustomActionButton
             Button.SetInfiniteUses();
         }
 
+        if (TextOutlineColor != Color.clear)
+        {
+            SetTextOutline(TextOutlineColor);
+        }
+
         var pb = Button.GetComponent<PassiveButton>();
         pb.OnClick = new Button.ButtonClickedEvent();
-        pb.OnClick.AddListener((UnityAction)ClickHandler);
+        pb.OnClick.AddListener((UnityAction)(() =>
+        {
+            // Invoke the generic button click event.
+            var genericEvent = new MiraButtonClickEvent(this);
+            MiraEventManager.InvokeEvent(genericEvent);
+            if (genericEvent.IsCancelled)
+            {
+                MiraEventManager.InvokeEvent(new MiraButtonCancelledEvent(this));
+            }
+
+            // Invoke the button click event for specific button.
+            var eventType = CustomButtonManager.ButtonEventTypes[GetType()];
+            var @event = (MiraCancelableEvent)Activator.CreateInstance(eventType, this, genericEvent)!;
+            var specificInvoked = MiraEventManager.InvokeEvent(@event, eventType);
+            if (@event.IsCancelled)
+            {
+                var cancelEventType = CustomButtonManager.ButtonCancelledEventTypes[GetType()];
+                var cancelEvent = (MiraEvent)Activator.CreateInstance(cancelEventType, this)!;
+                MiraEventManager.InvokeEvent(cancelEvent, cancelEventType);
+            }
+
+            if (specificInvoked)
+            {
+                if (!@event.IsCancelled)
+                {
+                    ClickHandler();
+                }
+            }
+            else
+            {
+                if (!genericEvent.IsCancelled)
+                {
+                    ClickHandler();
+                }
+            }
+        }));
+    }
+
+    /// <summary>
+    /// Allows you to change the button's location.
+    /// </summary>
+    /// <param name="location">The new location.</param>
+    /// <param name="moveButton">Whether the button's position should change in-game.</param>
+    public virtual void SetButtonLocation(ButtonLocation location, bool moveButton = true)
+    {
+        if (!HudManager.InstanceExists || Button == null)
+        {
+            return;
+        }
+
+        this.Location = location;
+
+        if (!moveButton) return;
+
+        if (HudManagerPatches._bottomLeft == null || HudManagerPatches._bottomRight == null)
+        {
+            return;
+        }
+
+        switch (location)
+        {
+            case ButtonLocation.BottomLeft:
+                var gridArrange = HudManagerPatches._bottomLeft.GetComponent<GridArrange>();
+                var aspectPosition = HudManagerPatches._bottomLeft.GetComponent<AspectPosition>();
+
+                Button.transform.SetParent(HudManagerPatches._bottomLeft.transform);
+
+                gridArrange.Start();
+                gridArrange.ArrangeChilds();
+                aspectPosition.AdjustPosition();
+                break;
+            case ButtonLocation.BottomRight:
+                Button.transform.SetParent(HudManagerPatches._bottomRight);
+                break;
+        }
     }
 
     /// <summary>
     /// A utility function to reset the cooldown and/or effect of the button.
     /// </summary>
-    public void ResetCooldownAndOrEffect()
+    public virtual void ResetCooldownAndOrEffect()
     {
         Timer = Cooldown;
         if (EffectActive)
@@ -113,10 +218,19 @@ public abstract class CustomActionButton
     }
 
     /// <summary>
+    /// A utility function to change the outline color of the button's text.
+    /// </summary>
+    /// <param name="color">The new color.</param>
+    public virtual void SetTextOutline(Color color)
+    {
+        Button?.buttonLabelText.SetOutlineColor(color);
+    }
+
+    /// <summary>
     /// A utility function to override the sprite of the button.
     /// </summary>
     /// <param name="sprite">The new sprite to override with.</param>
-    public void OverrideSprite(Sprite sprite)
+    public virtual void OverrideSprite(Sprite sprite)
     {
         if (Button != null)
         {
@@ -128,7 +242,7 @@ public abstract class CustomActionButton
     /// A utility function to override the name of the button.
     /// </summary>
     /// <param name="name">The new name to override with.</param>
-    public void OverrideName(string name)
+    public virtual void OverrideName(string name)
     {
         Button?.OverrideText(name);
     }
@@ -137,7 +251,7 @@ public abstract class CustomActionButton
     /// Set the button's timer.
     /// </summary>
     /// <param name="time">The time you want to set to.</param>
-    public void SetTimer(float time)
+    public virtual void SetTimer(float time)
     {
         Timer = Mathf.Clamp(time, -1, float.MaxValue);
     }
@@ -146,7 +260,7 @@ public abstract class CustomActionButton
     /// Increase the button's timer.
     /// </summary>
     /// <param name="amount">The amount you want to increase by.</param>
-    public void IncreaseTimer(float amount)
+    public virtual void IncreaseTimer(float amount)
     {
         SetTimer(Timer + amount);
     }
@@ -155,26 +269,40 @@ public abstract class CustomActionButton
     /// Decrease the button's timer.
     /// </summary>
     /// <param name="amount">The amount you want to decrease by.</param>
-    public void DecreaseTimer(float amount)
+    public virtual void DecreaseTimer(float amount)
     {
         SetTimer(Timer - amount);
+    }
+
+    /// <summary>
+    /// Sets whether the timer is paused or not.
+    /// </summary>
+    /// <param name="val">Whether you want to pause/resume the timer.</param>
+    public virtual void SetTimerPaused(bool val)
+    {
+        TimerPaused = val;
     }
 
     /// <summary>
     /// Set the amount of uses this button has left.
     /// </summary>
     /// <param name="amount">The amount you want to set to.</param>
-    public void SetUses(int amount)
+    public virtual void SetUses(int amount)
     {
         UsesLeft = Mathf.Clamp(amount, 0, int.MaxValue);
-        Button?.SetUsesRemaining(MaxUses);
+        Button?.SetUsesRemaining(UsesLeft);
+
+        if (Button != null)
+        {
+            Button.usesRemainingSprite.color = UsesLeft == 0 ? Color.red : Color.white;
+        }
     }
 
     /// <summary>
     /// Increase the amount of uses this button has left.
     /// </summary>
     /// <param name="amount">The amount you want to increase by. Default: 1.</param>
-    public void IncreaseUses(int amount = 1)
+    public virtual void IncreaseUses(int amount = 1)
     {
         SetUses(UsesLeft + amount);
     }
@@ -183,7 +311,7 @@ public abstract class CustomActionButton
     /// Decrease the amount of uses this button has left.
     /// </summary>
     /// <param name="amount">The amount you want to decrease by. Default: 1.</param>
-    public void DecreaseUses(int amount = 1)
+    public virtual void DecreaseUses(int amount = 1)
     {
         SetUses(UsesLeft - amount);
     }
@@ -218,14 +346,24 @@ public abstract class CustomActionButton
     }
 
     /// <summary>
-    /// When the button is enabled, this method is called to determine if the button can be used.
+    /// When the button is usable, this method is called to determine if the button can be clicked.
     /// By default, it takes into account the timer, effect, and uses.
     /// You can override it to change the behavior.
     /// </summary>
-    /// <returns>A value that represents whether the button can be used or not.</returns>
+    /// <returns>A value that represents whether the button can be clicked or not.</returns>
+    public virtual bool CanClick()
+    {
+        return Timer <= 0 && !EffectActive && CanUse();
+    }
+
+    /// <summary>
+    /// Whether the button should light up or not. This is also the base for CanClick.
+    /// You can override it to change the behaviour. Do not include timer in here, that is for CanClick.
+    /// </summary>
+    /// <returns>A value that represents whether the button should light up or not.</returns>
     public virtual bool CanUse()
     {
-        return Timer <= 0 && !EffectActive && (!LimitedUses || UsesLeft > 0);
+        return PlayerControl.LocalPlayer.moveable && (!LimitedUses || UsesLeft > 0);
     }
 
     /// <summary>
@@ -245,9 +383,9 @@ public abstract class CustomActionButton
     /// This method takes into account cooldowns, effects, and uses, before calling the <see cref="OnClick"/> method.
     /// It can be overridden for custom behavior.
     /// </summary>
-    protected virtual void ClickHandler()
+    public virtual void ClickHandler()
     {
-        if (!CanUse())
+        if (!CanClick())
         {
             return;
         }
@@ -259,7 +397,7 @@ public abstract class CustomActionButton
         }
 
         OnClick();
-        Button?.SetDisabled();
+
         if (HasEffect)
         {
             EffectActive = true;
@@ -279,7 +417,7 @@ public abstract class CustomActionButton
     /// <param name="playerControl">The local PlayerControl.</param>
     public virtual void FixedUpdateHandler(PlayerControl playerControl)
     {
-        if (Timer >= 0)
+        if (Timer >= 0 && !TimerPaused)
         {
             Timer -= Time.deltaTime;
         }
@@ -299,7 +437,17 @@ public abstract class CustomActionButton
             Button?.SetDisabled();
         }
 
-        Button?.SetCoolDown(Timer, EffectActive ? EffectDuration : Cooldown);
+        if (EffectActive)
+        {
+            Button?.SetFillUp(Timer, EffectDuration);
+
+            Button!.cooldownTimerText.text = Mathf.CeilToInt(Timer).ToString(NumberFormatInfo.InvariantInfo);
+            Button!.cooldownTimerText.gameObject.SetActive(true);
+        }
+        else
+        {
+            Button?.SetCoolDown(Timer, Cooldown);
+        }
 
         FixedUpdate(playerControl);
     }
@@ -314,7 +462,7 @@ public abstract class CustomActionButton<T> : CustomActionButton where T : MonoB
     /// <summary>
     /// Gets or sets the target object of the button.
     /// </summary>
-    public T? Target { get; protected set; }
+    public T? Target { get; set; }
 
     /// <summary>
     /// Gets the distance the player must be from the target object to use the button.
@@ -328,7 +476,7 @@ public abstract class CustomActionButton<T> : CustomActionButton where T : MonoB
     /// <returns>True if the target object is valid, false otherwise.</returns>
     public virtual bool IsTargetValid(T? target)
     {
-        return target;
+        return target != null;
     }
 
     /// <summary>
@@ -355,6 +503,21 @@ public abstract class CustomActionButton<T> : CustomActionButton where T : MonoB
         Target = IsTargetValid(newTarget) ? newTarget : null;
         SetOutline(true);
 
-        return base.CanUse() && Target;
+        return base.CanUse() && Target != null;
+    }
+
+    /// <inheritdoc />
+    public override bool CanClick()
+    {
+        return base.CanClick() && Target != null;
+    }
+
+    /// <summary>
+    /// Use this to reset the button's target after used.
+    /// </summary>
+    public virtual void ResetTarget()
+    {
+        Target = null;
+        SetOutline(false);
     }
 }

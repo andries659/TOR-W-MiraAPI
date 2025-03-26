@@ -7,12 +7,12 @@ using UnityEngine;
 namespace TORW;
 
 [RegisterInIl2Cpp]
-public class MiraDebugWindow(IntPtr cppPtr) : MonoBehaviour(cppPtr)
+public class DebugWindow(IntPtr cppPtr) : MonoBehaviour(cppPtr)
 {
     [HideFromIl2Cpp]
     public DragWindow DebuggingWindow { get; } = new(
         new Rect(10, 10, 0, 0),
-        "MIRA API DEBUGGING",
+        "TOR-W DEBUGGING MENU",
         () =>
         {
         })

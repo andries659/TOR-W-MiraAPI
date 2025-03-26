@@ -1,4 +1,5 @@
 ﻿using HarmonyLib;
+using MiraAPI.PluginLoading;
 using MiraAPI.Roles;
 
 namespace MiraAPI.Patches.Roles;
@@ -21,6 +22,14 @@ public static class GameStartupPatch
         }
 
         _runOnce = true;
+
+        if (MiraPluginManager.Instance.QueuedRoleRegistrations.Count <= 0) return;
+        foreach (var queue in MiraPluginManager.Instance.QueuedRoleRegistrations)
+        {
+            CustomRoleManager.RegisterRoleTypes(queue.Value, queue.Key);
+        }
+
+        MiraPluginManager.Instance.QueuedRoleRegistrations.Clear();
         CustomRoleManager.RegisterInRoleManager();
     }
 }

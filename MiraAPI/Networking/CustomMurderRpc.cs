@@ -3,8 +3,10 @@ using System.Linq;
 using AmongUs.GameOptions;
 using Assets.CoreScripts;
 using BepInEx.Unity.IL2CPP.Utils;
+using MiraAPI.Events;
+using MiraAPI.Events.Vanilla.Gameplay;
 using Reactor.Networking.Attributes;
-using Reactor.Utilities;
+using Reactor.Networking.Rpc;
 using Reactor.Utilities.Extensions;
 using UnityEngine;
 
@@ -26,7 +28,7 @@ public static class CustomMurderRpc
     /// <param name="teleportMurderer">Should the killer be snapped to the dead player.</param>
     /// <param name="showKillAnim">Should the kill animation be shown.</param>
     /// <param name="playKillSound">Should the kill sound be played.</param>
-    [MethodRpc((uint)MiraRpc.CustomMurder)]
+    [MethodRpc((uint)MiraRpc.CustomMurder, LocalHandling = RpcLocalHandling.Before, SendImmediately = true)]
     public static void RpcCustomMurder(
         this PlayerControl source,
         PlayerControl target,
@@ -38,6 +40,15 @@ public static class CustomMurderRpc
         bool playKillSound = true)
     {
         var murderResultFlags = didSucceed ? MurderResultFlags.Succeeded : MurderResultFlags.FailedError;
+
+        var beforeMurderEvent = new BeforeMurderEvent(source, target);
+        MiraEventManager.InvokeEvent(beforeMurderEvent);
+
+        if (beforeMurderEvent.IsCancelled)
+        {
+            murderResultFlags = MurderResultFlags.FailedError;
+        }
+
         var murderResultFlags2 = MurderResultFlags.DecisionByHost | murderResultFlags;
 
         source.CustomMurder(
@@ -72,7 +83,6 @@ public static class CustomMurderRpc
         bool playKillSound = true)
     {
         source.isKilling = false;
-        Logger<MiraApiPlugin>.Error($"{source.PlayerId} trying to murder {target.PlayerId}");
         var data = target.Data;
         if (resultFlags.HasFlag(MurderResultFlags.FailedError))
         {
@@ -105,7 +115,6 @@ public static class CustomMurderRpc
                 target.RemoveProtection();
             }
 
-            Logger<MiraApiPlugin>.Error($"{source.PlayerId} failed to murder {target.PlayerId} due to guardian angel protection");
             return;
         }
 
@@ -173,7 +182,6 @@ public static class CustomMurderRpc
             source.shapeshiftTargetPlayerId,
             target.PlayerId);
         source.MyPhysics.StartCoroutine(source.KillAnimations.Random()?.CoPerformCustomKill(source, target, createDeadBody, teleportMurderer));
-        Logger<MiraApiPlugin>.Error($"{source.PlayerId} succeeded in murdering {target.PlayerId}");
     }
 
     /// <summary>
@@ -239,11 +247,11 @@ public static class CustomMurderRpc
         }
 
         target.Die(DeathReason.Kill, true);
-        yield return source.MyPhysics.Animations.CoPlayCustomAnimation(anim.BlurAnim);
-        sourcePhys.Animations.PlayIdleAnimation();
 
         if (teleportMurderer)
         {
+            yield return source.MyPhysics.Animations.CoPlayCustomAnimation(anim.BlurAnim);
+            sourcePhys.Animations.PlayIdleAnimation();
             source.NetTransform.SnapTo(target.transform.position);
             KillAnimation.SetMovement(source, true);
         }
@@ -254,6 +262,9 @@ public static class CustomMurderRpc
         {
             deadBody.enabled = true;
         }
+
+        var afterMurderEvent = new AfterMurderEvent(source, target);
+        MiraEventManager.InvokeEvent(afterMurderEvent);
 
         if (!isParticipant)
         {

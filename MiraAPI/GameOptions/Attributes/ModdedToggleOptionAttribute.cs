@@ -1,6 +1,6 @@
-﻿using MiraAPI.GameOptions.OptionTypes;
-using System;
+﻿using System;
 using System.Reflection;
+using MiraAPI.GameOptions.OptionTypes;
 
 namespace MiraAPI.GameOptions.Attributes;
 
@@ -8,13 +8,12 @@ namespace MiraAPI.GameOptions.Attributes;
 /// Attribute for a toggle option.
 /// </summary>
 /// <param name="title">The option title.</param>
-/// <param name="roleType">An optional role type.</param>
 [AttributeUsage(AttributeTargets.Property)]
-public class ModdedToggleOptionAttribute(string title, Type? roleType = null) : ModdedOptionAttribute(title, roleType)
+public class ModdedToggleOptionAttribute(string title) : ModdedOptionAttribute(title)
 {
     internal override IModdedOption CreateOption(object? value, PropertyInfo property)
     {
-        var toggleOpt = new ModdedToggleOption(Title, (bool)(value ?? false), RoleType);
+        var toggleOpt = new ModdedToggleOption(Title, (bool)(value ?? false));
         return toggleOpt;
     }
 

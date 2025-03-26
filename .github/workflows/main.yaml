@@ -6,11 +6,11 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: true
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.nuget/packages
@@ -20,7 +20,7 @@ jobs:
             ${{ runner.os }}-nuget-
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v3
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
 
@@ -29,17 +29,17 @@ jobs:
         with:
           verbosity: Diagnostic
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: MiraAPI.dll
           path: MiraAPI/bin/Release/net6.0/MiraAPI.dll
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: AllOfUs.MiraAPI.nupkg
           path: MiraAPI/bin/Release/AllOfUs.MiraAPI.*.nupkg
           
-      - uses: softprops/action-gh-release@v1
+      - uses: softprops/action-gh-release@v2
         if: github.ref_type == 'tag'
         with:
           draft: true

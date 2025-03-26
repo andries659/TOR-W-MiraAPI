@@ -1,6 +1,5 @@
 ﻿using HarmonyLib;
 using MiraAPI.Hud;
-using MiraAPI.Roles;
 using Reactor.Utilities.Extensions;
 using UnityEngine;
 using Object = UnityEngine.Object;
@@ -14,7 +13,9 @@ namespace MiraAPI.Patches;
 public static class HudManagerPatches
 {
     // Custom buttons parent.
-    private static GameObject? _bottomLeft;
+    internal static GameObject? _bottomLeft;
+    internal static Transform? _bottomRight;
+    internal static Transform? _buttons;
 
     /*
     /// <summary>
@@ -35,12 +36,19 @@ public static class HudManagerPatches
     [HarmonyPatch(nameof(HudManager.Start))]
     public static void StartPostfix(HudManager __instance)
     {
-        var buttons = __instance.transform.Find("Buttons");
-        var bottomRight = buttons.Find("BottomRight");
+        if (_buttons == null)
+        {
+            _buttons = __instance.transform.Find("Buttons");
+        }
+
+        if (_bottomRight == null)
+        {
+            _bottomRight = _buttons.Find("BottomRight");
+        }
 
         if (_bottomLeft == null)
         {
-            _bottomLeft = Object.Instantiate(bottomRight.gameObject, buttons);
+            _bottomLeft = Object.Instantiate(_bottomRight.gameObject, _buttons);
         }
 
         foreach (var t in _bottomLeft.GetComponentsInChildren<ActionButton>(true))
@@ -60,7 +68,7 @@ public static class HudManagerPatches
             var location = button.Location switch
             {
                 ButtonLocation.BottomLeft => _bottomLeft.transform,
-                ButtonLocation.BottomRight => bottomRight,
+                ButtonLocation.BottomRight => _bottomRight,
                 _ => null,
             };
 

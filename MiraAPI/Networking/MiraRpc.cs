@@ -34,4 +34,14 @@ public enum MiraRpc : uint
     /// Custom Murder RPC.
     /// </summary>
     CustomMurder,
+
+    /// <summary>
+    /// Custom Game Over RPC.
+    /// </summary>
+    CustomGameOver,
+
+    /// <summary>
+    /// Custom RPC to undo a player's vote.
+    /// </summary>
+    RemoveVote,
 }

@@ -17,7 +17,7 @@ public abstract class TimedModifier : BaseModifier
     /// <summary>
     /// Gets a value indicating whether the timer should start automatically when added.
     /// </summary>
-    public virtual bool AutoStart => false;
+    public virtual bool AutoStart => true;
 
     /// <summary>
     /// Gets a value indicating whether the modifier should be removed when the timer completes.
@@ -27,7 +27,9 @@ public abstract class TimedModifier : BaseModifier
     /// <summary>
     /// Called when the timer completes.
     /// </summary>
-    public abstract void OnTimerComplete();
+    public virtual void OnTimerComplete()
+    {
+    }
 
     /// <summary>
     /// Gets or sets a value indicating whether the timer is active.
@@ -102,7 +104,7 @@ public abstract class TimedModifier : BaseModifier
 
         if (RemoveOnComplete)
         {
-            ModifierComponent?.RemoveModifier(ModifierId);
+            ModifierComponent?.RemoveModifier(this);
         }
     }
 

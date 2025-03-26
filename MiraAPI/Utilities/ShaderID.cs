@@ -1,8 +1,12 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 
 namespace MiraAPI.Utilities;
 
+/// <summary>
+/// Utility class for caching shader property IDs.
+/// </summary>
 public static class ShaderID
 {
     private static readonly Dictionary<string, int> Cache = [];

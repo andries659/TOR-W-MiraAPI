@@ -1,10 +1,11 @@
-﻿using MiraAPI.Roles;
+﻿using AmongUs.GameOptions;
+using MiraAPI.Roles;
+using MiraAPI.Utilities;
 using TMPro;
 using UnityEngine;
 
 namespace TORW.Roles;
 
-[RegisterCustomRole]
 public class ChameloenRole : CrewmateRole, ICustomRole
 {
     public string RoleName => "Chamelon";
@@ -13,9 +14,12 @@ public class ChameloenRole : CrewmateRole, ICustomRole
     public Color RoleColor => Palette.AcceptedGreen;
     public ModdedRoleTeams Team => ModdedRoleTeams.Crewmate;
 
-    public CustomRoleConfiguration Configuration => new CustomRoleConfiguration(this)
+    public CustomRoleConfiguration Configuration => new(this)
     {
-        OptionsScreenshot = TORWAssets.FreezerBanner,
+        IntroSound = CustomRoleUtils.GetIntroSound(RoleTypes.Shapeshifter),
+        DefaultChance = 10,
+        DefaultRoleCount = 1,
+        CanModifyChance = true,
     };
 
     public void PlayerControlFixedUpdate(PlayerControl playerControl)
