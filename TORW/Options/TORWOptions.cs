@@ -10,6 +10,6 @@ public class TORWOptions : AbstractOptionGroup
     public override string GroupName => "TOR-W Mod Options";
     public override Color GroupColor => new Color32(3, 252, 240, 255);
 
-    [ModdedToggleOption($"Toggle Dark Mode\n<size=70%>(Dark Chat Menu)</size>")]
+    [ModdedToggleOption($"This option is soon to come!\n<size=70%>(Dark Chat Menu)</size>")]
     public bool ToggleOpt { get; set; } = false;
 }

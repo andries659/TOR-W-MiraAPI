@@ -16,7 +16,7 @@ public class ChameloenRole : CrewmateRole, ICustomRole
 
     public CustomRoleConfiguration Configuration => new(this)
     {
-        IntroSound = CustomRoleUtils.GetIntroSound(RoleTypes.Shapeshifter),
+        Icon = TORWAssets.ChameleonIcon,
         DefaultChance = 10,
         DefaultRoleCount = 1,
         CanModifyChance = true,
